@@ -262,7 +262,7 @@ class View(wx.Panel):
         self.pgrid.SetRowLabelSize(-1)
         self.pgrid.ShowScrollbars(wx.SHOW_SB_NEVER, wx.SHOW_SB_NEVER)
 
-        ibox = wx.StaticBox(self, label='Periperal Interrupts')
+        ibox = wx.StaticBox(self, label='Peripheral Interrupts')
         self.itable = intsTable(self, data)
         self.igrid = my.myGrid(ibox)
         self.igrid.SetTable(self.itable, True)
@@ -271,7 +271,7 @@ class View(wx.Panel):
         self.igrid.ShowScrollbars(wx.SHOW_SB_NEVER, wx.SHOW_SB_NEVER)
         self.igrid.SetSelectionMode(gridlib.Grid.wxGridSelectRows)
 
-        rbox = wx.StaticBox(self, label='Periperal Registers')
+        rbox = wx.StaticBox(self, label='Peripheral Registers')
         self.rtable = regsTable(self, data)
         self.rgrid = my.myGrid(rbox)
         self.rgrid.SetTable(self.rtable, True)
