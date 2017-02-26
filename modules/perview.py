@@ -30,15 +30,15 @@ class peripheralTable(my.myTable):
         if self.data is None:
             return None
         if row == 1:
-            return self.Attr('Gray') if self.data.desc is None and self.data.ref else None
+            return self.Attr('Gray') if not self.data.desc and self.data.ref else None
         if row == 2:
-            return self.Attr('Gray') if self.data.group is None and self.data.ref else None
+            return self.Attr('Gray') if not self.data.group and self.data.ref else None
         if row == 4:
-            return self.Attr('Gray') if self.data.address is None and self.data.ref else None
+            return self.Attr('Gray') if not self.data.address and self.data.ref else None
         if row == 5:
-            return self.Attr('Gray') if self.data.aoffset is None and self.data.ref else None
+            return self.Attr('Gray') if not self.data.aoffset and self.data.ref else None
         if row == 6:
-            return self.Attr('Gray') if self.data.asize is None and self.data.ref else None
+            return self.Attr('Gray') if not self.data.asize and self.data.ref else None
         return None
 
     def SetValue(self, row, col, val):

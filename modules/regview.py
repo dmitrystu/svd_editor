@@ -125,16 +125,16 @@ class fieldsTable(my.myTable):
         if ext == self.rowcount:
             return
         if ext > self.rowcount:
-            msg = my.myGrid.GridTableMessage(self, my.myGrid.GRIDTABLE_NOTIFY_ROWS_APPENDED, ext - self.rowcount)
+            msg = gridlib.GridTableMessage(self, gridlib.GRIDTABLE_NOTIFY_ROWS_APPENDED, ext - self.rowcount)
         else:
-            msg = my.myGrid.GridTableMessage(self, my.myGrid.GRIDTABLE_NOTIFY_ROWS_DELETED, ext, self.rowcount - ext)
+            msg = gridlib.GridTableMessage(self, gridlib.GRIDTABLE_NOTIFY_ROWS_DELETED, ext, self.rowcount - ext)
         self.rowcount = ext
         self.GetView().ProcessTableMessage(msg)
 
     def DelRecord(self, index):
         record = self.workset[index]
         if record.atrib == 'main':
-            self.data.delRegister(record.item)
+            self.data.delField(record.item)
             my.post_event(self.parent, my.EVT_FIELD_DELETED, record.item)
 
     def init_workset(self, data):

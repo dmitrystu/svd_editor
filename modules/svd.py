@@ -438,7 +438,7 @@ class peripheral(basedata):
 
     def setRef(self, ref):
         if ref:
-            for x in self.parent.peripherals():
+            for x in self.parent.peripherals:
                 if x == self:
                     return False
                 if x.name == ref:
@@ -469,7 +469,6 @@ class peripheral(basedata):
 
     def delInterrupt(self, item):
         self.interrupts.remove(item)
-
 
 class device(basedata):
     def __init__(self, xml=None):
@@ -531,6 +530,12 @@ class device(basedata):
     def addPeripheral(self, item):
         item.parent = self
         self.peripherals.append(item)
+
+    def movePeripheral(self, dest, item):
+        uindex = 1 + self.peripherals.index(dest)
+        iindex = self.peripherals.index(item)
+        if iindex != uindex:
+            self.peripherals.insert(uindex, self.peripherals.pop(iindex))
 
     def load(self, name):
         xml = et.parse(name)
