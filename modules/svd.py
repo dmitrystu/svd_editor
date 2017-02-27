@@ -438,7 +438,7 @@ class peripheral(basedata):
 
     def setRef(self, ref):
         if ref:
-            for x in self.parent.peripherals():
+            for x in self.parent.peripherals:
                 if x == self:
                     return False
                 if x.name == ref:
