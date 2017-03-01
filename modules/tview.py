@@ -121,6 +121,11 @@ class View(wx.Panel):
                     p.addRegister(new)
                 self.Append(new)
 
+    def SelectItem(self, obj):
+        item = self.data.get(obj, None)
+        if item and item.IsOk():
+            self.tree.SelectItem(item, True)
+
     def onResize(self, event):
         self.Layout()
 

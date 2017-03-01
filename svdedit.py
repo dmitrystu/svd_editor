@@ -109,7 +109,12 @@ class MyFrame(wx.Frame):
             self.saved = False
 
     def OnValidItem(self, event):
-        wx.MessageBox('Not yet implemented')
+        try:
+            self.dev.validate()
+            wx.MessageBox('No errors found')
+        except svd.SVD_error as e:
+            self.tree.SelectItem(e.obj)
+            wx.MessageBox(e.msg, 'Error', wx.OK | wx.ICON_ERROR)
 
     def OnAddItem(self, event):
         obj = self.FindFocus()
