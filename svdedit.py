@@ -18,6 +18,7 @@ class MyFrame(wx.Frame):
 
         self.dev = svd.device()
         self.filename = None
+        self.saved = True
 
         MainMenu = wx.MenuBar()
         FileMenu = wx.Menu()
@@ -81,13 +82,6 @@ class MyFrame(wx.Frame):
     def OnMyCommand(self, event):
         eid = event.GetId()
         eobj = event.GetClientData()
-
-        if eid == my.EVT_REG_NAME_CHANGED or eid == my.EVT_PER_NAME_CHANGED or eid == my.EVT_DEV_NAME_CHANGED:
-            self.tree.Reload(eobj)
-        if eid == my.EVT_REG_DELETED or eid == my.EVT_PER_DELETED:
-            self.tree.Remove(eobj)
-        if eid == my.EVT_REG_ADDED or eid == my.EVT_PER_ADDED:
-            self.tree.Append(eobj)
         if eid == my.EVT_SELECTED:
             old = self.view
             new = None
@@ -103,9 +97,24 @@ class MyFrame(wx.Frame):
                 self.view = new
                 old.Destroy()
             self.splitter.Thaw()
+            return
+        elif eid == my.EVT_REG_NAME_CHANGED or eid == my.EVT_PER_NAME_CHANGED or eid == my.EVT_DEV_NAME_CHANGED:
+            self.tree.Reload(eobj)
+        elif eid == my.EVT_REG_DELETED or eid == my.EVT_PER_DELETED:
+            self.tree.Remove(eobj)
+        elif eid == my.EVT_REG_ADDED or eid == my.EVT_PER_ADDED:
+            self.tree.Append(eobj)
+        if self.saved:
+            self.SetLabel('* %s' % (self.GetLabel()))
+            self.saved = False
 
     def OnValidItem(self, event):
-        wx.MessageBox('Not yet implemented')
+        try:
+            self.dev.validate()
+            wx.MessageBox('No errors found')
+        except svd.SVD_error as e:
+            self.tree.SelectItem(e.obj)
+            wx.MessageBox(e.msg, 'Error', wx.OK | wx.ICON_ERROR)
 
     def OnAddItem(self, event):
         obj = self.FindFocus()
@@ -136,11 +145,14 @@ class MyFrame(wx.Frame):
             self.filename = LoadSvdDialog.GetPath()
             self.dev.load(self.filename)
             self.tree.LoadDevice(self.dev)
+            self.saved = True
             self.SetLabel('%s - SVD editor' % (self.filename))
 
     def OnSave(self, event):
         if self.filename:
             self.dev.save(self.filename)
+            self.saved = True
+            self.SetLabel('%s - SVD editor' % (self.filename))
 
     def OnSaveAs(self, event):
         SaveSvdDialog = wx.FileDialog(self,
@@ -149,6 +161,7 @@ class MyFrame(wx.Frame):
         if SaveSvdDialog.ShowModal() == wx.ID_OK:
             self.filename = SaveSvdDialog.GetPath()
             self.dev.save(self.filename)
+            self.saved = True
             self.SetLabel('%s - SVD editor' % (self.filename))
 
     def OnAbout(self, event):
