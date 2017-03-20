@@ -3,6 +3,7 @@ from lxml import etree as et
 
 arights = ('read-only', 'read-write', 'write-only', 'writeOnce', 'read-writeOnce')
 
+__version__ = '1.0.1'
 
 default_xml = ('<device><name>NEW_DEVICE</name>'
                '<version>1.0</version>'
@@ -30,15 +31,6 @@ default_xml = ('<device><name>NEW_DEVICE</name>'
                )
 
 
-class SVD_error(Exception):
-    def __init__(self, msg, obj):
-        self.msg = msg
-        self.obj = obj
-
-    def __str__(self):
-        return '%s in %s' % (self.msg, repr(self.obj))
-
-
 def str_cleanup(s):
     try:
         s = s.encode('ascii', errors='ignore')
@@ -64,7 +56,7 @@ def get_from_xml(node, attr):
 class basedata(object):
     def __init__(self, parent=None):
         self.parent = parent
-        self._name = None
+        self._name = 'new'
         self._desc = None
         self._rsize = None
         self.rvalue = None
@@ -177,7 +169,7 @@ class field(basedata):
 
     def toXML(self, node=None):
         if node is None:
-            node = et.Element('export_field')
+            node = et.Element('field')
         et.SubElement(node, 'name').text = self.name
         if self.desc:
             et.SubElement(node, 'description').text = self.desc
@@ -232,7 +224,7 @@ class register(basedata):
 
     def toXML(self, node=None):
         if node is None:
-            node = et.Element('export_register')
+            node = et.Element('register')
         et.SubElement(node, 'name').text = self.name
         if self.dispname:
             et.SubElement(node, 'displayName').text = self.dispname
@@ -277,16 +269,27 @@ class register(basedata):
     def delField(self, item):
         self.fields.remove(item)
 
-    def validate(self):
+    def validate(self, callback):
         names = []
         cap = int(self.vsize, 0)
-        for x in self.fields:
+        ofs = 0
+        for x in sorted(self.fields, key=lambda x: x._bito):
             if x.name in names:
-                raise SVD_error('Duplicated bitfield name %s' % (x.name), self)
+                if callback('Duplicated bitfield name %s in %s' % (x.name, self.name)):
+                    return True
             elif x._bito + x._bitw > cap:
-                raise SVD_error('Bitfield %s is out of bounds' % (x.name), self)
+                if callback('Bitfield %s is out of bounds in %s' % (x.name, self.name)):
+                    return True
+            elif ofs > x._bito:
+                if callback('Bitfields %s and %s overlapped in %s' % (x.name, names[-1], self.name)):
+                    return True
+            elif x.vaccess == 'undefined':
+                if callback('Undefined access level for %s in %s' % (x.name, self.name)):
+                    return True
             else:
                 names.append(x.name)
+                ofs = x._bito + x._bitw
+        return False
 
 
 class interrupt(basedata):
@@ -315,7 +318,7 @@ class interrupt(basedata):
 
     def toXML(self, node=None):
         if node is None:
-            node = et.Element('export_interrupt')
+            node = et.Element('interrupt')
         et.SubElement(node, 'name').text = self.name
         if self.desc:
             et.SubElement(node, 'description').text = self.desc
@@ -387,7 +390,7 @@ class peripheral(basedata):
 
     def toXML(self, node=None):
         if node is None:
-            node = et.Element('export_peripheral')
+            node = et.Element('peripheral')
         if self.ref:
             node.set('derivedFrom', self.ref.name)
         et.SubElement(node, 'name').text = self.name
@@ -460,17 +463,29 @@ class peripheral(basedata):
     def delInterrupt(self, item):
         self.interrupts.remove(item)
 
-    def validate(self):
+    def validate(self, callback):
         names = []
+        ofs = 0
         for x in sorted(self.registers, key=lambda x: x._offset, reverse=False):
             rsize = int(x.vsize, 0) / 8
             if x.name in names:
-                raise SVD_error('Duplicated register name %s' % (x.name), self)
+                if callback('Duplicated register name %s in %s' % (x.name, self.name)):
+                    return True
+            elif x._offset < ofs:
+                if callback('Registers %s and %s in %s is overlapped' % (x.name, names[-1], self.name)):
+                    return True
             elif x._offset + rsize > self._asize:
-                raise SVD_error('Register %s is out of bounds' % (x.name), self)
+                if callback('Register %s is out of bounds in %s' % (x.name, self.name)):
+                    return True
+            elif x.vaccess == 'undefined':
+                if callback('Undefined access level for %s in %s' % (x.name, self.name)):
+                    return True
             else:
-                x.validate()
+                if x.validate(callback):
+                    return True
                 names.append(x.name)
+                ofs = x._offset + rsize
+        return False
 
 
 class device(basedata):
@@ -540,18 +555,27 @@ class device(basedata):
         if iindex != uindex:
             self.peripherals.insert(uindex, self.peripherals.pop(iindex))
 
-    def validate(self):
+    def validate(self, callback):
         names = []
         vectors = []
-        for x in self.peripherals:
+        ofs = 0
+        for x in sorted(self.peripherals, key=lambda x: x._address + x._aoffset):
             if x.name in names:
-                raise SVD_error('Duplicated peripheral name %s' % (x.name), self)
-            x.validate()
+                if callback('Duplicated peripheral name %s' % (x.name)):
+                    return True
+            if ofs > x._address + x._aoffset:
+                if callback('Peripherals %s and %s is overlapped' % (x.name, names[-1])):
+                    return True
+            if x.validate(callback):
+                return True
             names.append(x.name)
+            ofs = x._address + x._aoffset + x._asize
             for i in x.interrupts:
                 if i.value in vectors:
-                    raise SVD_error('Duplicated interrupt vector %s' % (i.name), x)
+                    if callback('Duplicated interrupt vector %s' % (i.name)):
+                        return True
                 vectors.append(i.value)
+        return False
 
     def load(self, name):
         xml = et.parse(name)
@@ -562,7 +586,7 @@ class device(basedata):
         xml = et.Element('device', schemaVersion='1.1',
                          nsmap={'xs': xs},
                          attrib={'{' + xs + '}noNamespaceSchemaLocation': 'CMSIS-SVD_Schema_1_1.xsd'})
-        xml.addprevious(et.Comment('generated by SVD editor'))
+        xml.addprevious(et.Comment('generated by SVD editor ' + __version__))
         self.toXML(xml)
         tree = et.ElementTree(xml)
         tree.write(name, encoding='utf-8', xml_declaration=True, standalone=True, pretty_print=True)

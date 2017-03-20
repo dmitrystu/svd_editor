@@ -19,6 +19,7 @@ class MyFrame(wx.Frame):
         self.dev = svd.device()
         self.filename = None
         self.saved = True
+        self.errcount = 0
 
         MainMenu = wx.MenuBar()
         FileMenu = wx.Menu()
@@ -32,13 +33,17 @@ class MyFrame(wx.Frame):
         AddItem = EditMenu.Append(wx.ID_ADD, 'Add Item', 'Add Item')
         DelItem = EditMenu.Append(wx.ID_DELETE, 'Delete Item', 'Delete Item')
         CloneItem = EditMenu.Append(wx.ID_DUPLICATE, 'Clone Item', 'Clone Item')
-        ValidItem = EditMenu.Append(wx.ID_APPLY, 'Validate', 'Run Validation')
+
+        ToolsMenu = wx.Menu()
+        ValidItem = ToolsMenu.Append(wx.ID_ANY, 'Validate', 'Run Validation')
+        CompactItem = ToolsMenu.Append(wx.ID_ANY, 'Compact', 'Compact')
 
         InfoMenu = wx.Menu()
         AboutNfo = InfoMenu.Append(wx.ID_ABOUT, 'About', 'About this program')
 
         MainMenu.Append(FileMenu, '&File')
         MainMenu.Append(EditMenu, '&Edit')
+        MainMenu.Append(ToolsMenu, '&Tools')
         MainMenu.Append(InfoMenu, '&Info')
         self.SetMenuBar(MainMenu)
 
@@ -51,7 +56,9 @@ class MyFrame(wx.Frame):
         self.Bind(wx.EVT_MENU, self.OnAddItem, AddItem)
         self.Bind(wx.EVT_MENU, self.OnDelItem, DelItem)
         self.Bind(wx.EVT_MENU, self.OnCloneItem, CloneItem)
+
         self.Bind(wx.EVT_MENU, self.OnValidItem, ValidItem)
+        self.Bind(wx.EVT_MENU, self.OnCompactItem, CompactItem)
 
         self.Bind(wx.EVT_MENU, self.OnAbout, AboutNfo)
 
@@ -108,13 +115,30 @@ class MyFrame(wx.Frame):
             self.SetLabel('* %s' % (self.GetLabel()))
             self.saved = False
 
+    def OnCompactItem(self, event):
+        for p in self.dev.peripherals:
+            for r in p.registers:
+                if r.rsize == r.parent.vsize:
+                    r._rsize = None
+                if r.rvalue is not None and int(r.rvalue, 0) == int(r.parent.vvalue, 0):
+                    r.rvalue = None
+                if r.access == r.parent.vaccess:
+                    r._access = None
+                for f in r.fields:
+                    if f._access == f.parent.vaccess:
+                        f._access = None
+
+    def ValidateCallback(self, msg):
+        self.errcount = self.errcount + 1
+        res = wx.MessageBox(msg, 'Continue validation ?', wx.YES_NO | wx.ICON_ERROR)
+        return True if res == wx.NO else False
+
     def OnValidItem(self, event):
-        try:
-            self.dev.validate()
-            wx.MessageBox('No errors found')
-        except svd.SVD_error as e:
-            self.tree.SelectItem(e.obj)
-            wx.MessageBox(e.msg, 'Error', wx.OK | wx.ICON_ERROR)
+        self.errcount = 0
+        if self.dev.validate(self.ValidateCallback):
+            wx.MessageBox('Validation canceled')
+        else:
+            wx.MessageBox('%s errors found' % (self.errcount if self.errcount else 'No'))
 
     def OnAddItem(self, event):
         obj = self.FindFocus()
@@ -167,11 +191,12 @@ class MyFrame(wx.Frame):
     def OnAbout(self, event):
         info = wx.AboutDialogInfo()
         info.SetName('SVD editor')
-        info.SetVersion('0.0.1 Beta')
+        info.SetVersion(svd.__version__)
         info.SetDescription('CMSIS System View Description editor tool')
         info.SetCopyright('(C) 2017 Dmitry Filimonchuk')
         lfile = open('LICENSE', 'r')
-        info.SetLicense(lfile.read())
+        if lfile:
+            info.SetLicense(lfile.read())
         info.WebSite = ('http://github.com/dmitrystu')
         wx.AboutBox(info)
 
