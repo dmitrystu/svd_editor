@@ -35,7 +35,7 @@ class deviceTable(my.myTable):
         data = self.data
         if row == 0:
             data.name = val
-            wx.PostEvent(self.parent.GetGrandParent(), my.Evt(my.EVTID_TREE_RITEM))
+            my.post_event(self.parent.GetGrandParent(), my.EVT_DEV_NAME_CHANGED, data)
         elif row == 1:
             data.desc = val
         elif row == 2:
